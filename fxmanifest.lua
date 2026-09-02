@@ -11,12 +11,23 @@ version '0.1.0-dev'
 shared_scripts {
     'config.lua',
     'shared/constants.lua',
-    'shared/results.lua'
+    'shared/results.lua',
+    'shared/contract/canonical.lua',
+    'shared/contract/registry.lua',
+    'shared/contract/validator.lua',
+    'schemas/audit/smoke_ingested_v1.lua'
 }
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/core/runtime.lua',
+    'server/core/config.lua',
+    'server/database/migrations.lua',
+    'server/repositories/events.lua',
+    'server/repositories/quarantine.lua',
+    'server/ingestion/rate_limit.lua',
+    'server/ingestion/service.lua',
+    'server/services/smoke.lua',
     'server/main.lua'
 }
 
