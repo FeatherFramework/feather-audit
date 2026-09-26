@@ -1,11 +1,11 @@
 FeatherAuditEventRepository = {}
 
 local function existing(sourceResource, sourceInstance, eventId)
-    return MySQL.single.await([[SELECT audit_event_id AS auditEventId,
+    return DB.one([[SELECT audit_event_id AS auditEventId,
         canonical_payload AS canonicalPayload, integrity_hash AS integrityHash
         FROM feather_audit_events
         WHERE source_resource = ? AND source_instance = ? AND producer_event_id = ? LIMIT 1]],
-        { sourceResource, sourceInstance, eventId })
+        sourceResource, sourceInstance, eventId)
 end
 
 local function databaseTimestamp(value)
@@ -60,8 +60,17 @@ function FeatherAuditEventRepository.Accept(event, canonical, contextJson)
         return found.canonicalPayload == canonical and 'duplicate' or 'identity_conflict', found.auditEventId
     end
 
-    local auditEventId = MySQL.scalar.await('SELECT UUID()')
-    local ok, persisted = pcall(MySQL.transaction.await, statementsFor(auditEventId, event, canonical, contextJson))
+    local auditEventId = DB.value('SELECT UUID()')
+    -- Kept as its own pcall (rather than letting a transaction failure raise past this point) so
+    -- the diagnostic reason below still distinguishes "the transaction itself was rejected" from
+    -- a genuine database/connection error, matching this function's documented outcomes.
+    local transacted, transactionResult = pcall(DB.transaction, function(tx)
+        for _, statement in ipairs(statementsFor(auditEventId, event, canonical, contextJson)) do
+            tx.raw(statement.query, table.unpack(statement.values))
+        end
+        return true
+    end)
+    local ok, persisted = true, transacted and transactionResult == true
     if ok and persisted then return 'accepted', auditEventId end
 
     found = existing(event.sourceResource, event.sourceInstance, event.eventId)

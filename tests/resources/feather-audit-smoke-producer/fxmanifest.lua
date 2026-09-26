@@ -9,13 +9,13 @@ author 'Feather Framework'
 version '0.1.0-test'
 
 server_scripts {
-    '@oxmysql/lib/MySQL.lua',
+    '@feather-mysql/lib/DB.lua',
     'config.lua',
     'server.lua'
 }
 
 dependencies {
-    'oxmysql',
+    'feather-mysql',
     'feather-audit'
 }
 

@@ -19,7 +19,7 @@ shared_scripts {
 }
 
 server_scripts {
-    '@oxmysql/lib/MySQL.lua',
+    '@feather-mysql/lib/DB.lua',
     'server/core/runtime.lua',
     'server/core/config.lua',
     'server/database/migrations.lua',
@@ -32,7 +32,7 @@ server_scripts {
 }
 
 dependencies {
-    'oxmysql',
+    'feather-mysql',
     'feather-core'
 }
 

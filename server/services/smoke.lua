@@ -92,7 +92,7 @@ RegisterCommand('AuditDependencySmokeTest', function(source)
     if not enabled(source, command) then return end
 
     local databaseCallOk, databaseValue = pcall(function()
-        return MySQL.scalar.await('SELECT 1')
+        return DB.value('SELECT 1')
     end)
     local currentResource = GetCurrentResourceName()
     printChecks(command, {
@@ -113,11 +113,11 @@ RegisterCommand('AuditMigrationSmokeTest', function(source)
     }
     local checks = {}
     for _, tableName in ipairs(requiredTables) do
-        local count = tonumber(MySQL.scalar.await([[SELECT COUNT(*) FROM information_schema.TABLES
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?]], { tableName })) or 0
+        local count = tonumber(DB.value([[SELECT COUNT(*) FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?]], tableName)) or 0
         checks[#checks + 1] = { tableName .. ' exists', count == 1 }
     end
-    local ledger = tonumber(MySQL.scalar.await(
+    local ledger = tonumber(DB.value(
         'SELECT COUNT(*) FROM feather_audit_schema_migrations')) or 0
     checks[#checks + 1] = { 'migration ledger has one row', ledger == 1 }
     printChecks(command, checks)
@@ -130,37 +130,37 @@ RegisterCommand('AuditIngestionSmokeTest', function(source)
         return print(('[%s] FAIL Audit is not ready'):format(command))
     end
 
-    local uuid = tostring(MySQL.scalar.await('SELECT UUID()'))
+    local uuid = tostring(DB.value('SELECT UUID()'))
     local eventId = 'smoke:' .. uuid
     local original = smokeEvent(eventId, 1)
     local accepted = FeatherAuditIngestion.Ingest(original, 'feather-audit-smoke')
     local duplicate = FeatherAuditIngestion.Ingest(original, 'feather-audit-smoke')
     local conflictEvent = smokeEvent(eventId, 1, 'Changed content under reused identity')
     local conflict = FeatherAuditIngestion.Ingest(conflictEvent, 'feather-audit-smoke')
-    local invalidEvent = smokeEvent('smoke:' .. tostring(MySQL.scalar.await('SELECT UUID()')), 2)
+    local invalidEvent = smokeEvent('smoke:' .. tostring(DB.value('SELECT UUID()')), 2)
     invalidEvent.context.unknownField = true
     local invalid = FeatherAuditIngestion.Ingest(invalidEvent, 'feather-audit-smoke')
-    local unknownVersionEvent = smokeEvent('smoke:' .. tostring(MySQL.scalar.await('SELECT UUID()')), 3)
+    local unknownVersionEvent = smokeEvent('smoke:' .. tostring(DB.value('SELECT UUID()')), 3)
     unknownVersionEvent.eventVersion = 2
     local unknownVersion = FeatherAuditIngestion.Ingest(unknownVersionEvent, 'feather-audit-smoke')
-    local prohibitedEvent = smokeEvent('smoke:' .. tostring(MySQL.scalar.await('SELECT UUID()')), 4)
+    local prohibitedEvent = smokeEvent('smoke:' .. tostring(DB.value('SELECT UUID()')), 4)
     prohibitedEvent.summary = 'https://discord.com/api/webhooks/123/not-a-real-secret'
     local prohibited = FeatherAuditIngestion.Ingest(prohibitedEvent, 'feather-audit-smoke')
-    local oversizedEvent = smokeEvent('smoke:' .. tostring(MySQL.scalar.await('SELECT UUID()')), 5)
+    local oversizedEvent = smokeEvent('smoke:' .. tostring(DB.value('SELECT UUID()')), 5)
     oversizedEvent.context.padding_a = string.rep('a', 9000)
     oversizedEvent.context.padding_b = string.rep('b', 9000)
     local oversized = FeatherAuditIngestion.Ingest(oversizedEvent, 'feather-audit-smoke')
-    local oldEvent = smokeEvent('smoke:' .. tostring(MySQL.scalar.await('SELECT UUID()')), 6)
+    local oldEvent = smokeEvent('smoke:' .. tostring(DB.value('SELECT UUID()')), 6)
     oldEvent.occurredAt = '2020-01-01T00:00:00Z'
     local oldAccepted = FeatherAuditIngestion.Ingest(oldEvent, 'feather-audit-smoke')
 
-    local row = accepted.auditEventId and MySQL.single.await([[SELECT canonical_payload AS canonicalPayload,
+    local row = accepted.auditEventId and DB.one([[SELECT canonical_payload AS canonicalPayload,
         integrity_hash AS integrityHash FROM feather_audit_events
-        WHERE audit_event_id = ? LIMIT 1]], { accepted.auditEventId }) or nil
-    local matchingHash = row and MySQL.scalar.await('SELECT SHA2(?, 256)', { row.canonicalPayload })
-    local eventCount = tonumber(MySQL.scalar.await([[SELECT COUNT(*) FROM feather_audit_events
+        WHERE audit_event_id = ? LIMIT 1]], accepted.auditEventId) or nil
+    local matchingHash = row and DB.value('SELECT SHA2(?, 256)', row.canonicalPayload)
+    local eventCount = tonumber(DB.value([[SELECT COUNT(*) FROM feather_audit_events
         WHERE source_resource = ? AND source_instance = ? AND producer_event_id = ?]],
-        { 'feather-audit-smoke', Config.SourceInstance, eventId })) or 0
+        'feather-audit-smoke', Config.SourceInstance, eventId)) or 0
 
     printChecks(command, {
         { 'new event accepted', accepted.result == 'accepted' and type(accepted.auditEventId) == 'string' },
