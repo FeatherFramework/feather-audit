@@ -6,7 +6,7 @@ lua54 'yes'
 name 'feather-audit'
 description 'Cross-domain audit, investigation, and operator alerting for Feather Framework'
 author 'BCC Scripts'
-version '0.1.0-dev'
+version '0.2.0-dev'
 
 shared_scripts {
     'config.lua',
@@ -19,7 +19,7 @@ shared_scripts {
 }
 
 server_scripts {
-    '@oxmysql/lib/MySQL.lua',
+    '@feather-mysql/lib/DB.lua',
     'server/core/runtime.lua',
     'server/core/config.lua',
     'server/database/migrations.lua',
@@ -32,7 +32,7 @@ server_scripts {
 }
 
 dependencies {
-    'oxmysql',
+    'feather-mysql',
     'feather-core'
 }
 

@@ -11,18 +11,18 @@ function FeatherAuditQuarantineRepository.Record(sourceResource, event, rejectio
     local eventType = type(event) == 'table' and bounded(event.eventType, 128) or nil
     local code = bounded(rejection.code or 'invalid_event', 128)
     local path = bounded(rejection.path, 256)
-    MySQL.query.await([[INSERT INTO feather_audit_quarantine
+    DB.exec([[INSERT INTO feather_audit_quarantine
         (fingerprint, source_resource, source_instance, producer_event_id,
          event_type, rejection_code, rejection_path)
         VALUES (SHA2(CONCAT_WS('|', ?, ?, ?, ?, ?, ?), 256), ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE last_seen_at = CURRENT_TIMESTAMP(3),
-            occurrence_count = occurrence_count + 1]], {
+            occurrence_count = occurrence_count + 1]],
         sourceResource, sourceInstance or '', eventId or '', eventType or '', code, path or '',
         sourceResource, sourceInstance, eventId, eventType, code, path
-    })
+    )
 end
 
 function FeatherAuditQuarantineRepository.CountOpen()
-    return tonumber(MySQL.scalar.await(
+    return tonumber(DB.value(
         "SELECT COUNT(*) FROM feather_audit_quarantine WHERE state = 'open'")) or 0
 end

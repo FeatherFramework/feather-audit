@@ -19,7 +19,8 @@ AddEventHandler('onResourceStart', function(resourceName)
     end
 end)
 
-MySQL.ready(function()
+CreateThread(function()
+    DB.awaitReady()
     local configOk, configProblem = FeatherAuditConfig.Validate()
     if not configOk then
         FeatherAudit.SetDatabaseState(false, 0, configProblem)

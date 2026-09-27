@@ -5,7 +5,7 @@ local migrations = {
         id = '001_audit_foundation',
         checksum = 'audit-foundation-v1-20260902',
         up = function()
-            MySQL.query.await([[CREATE TABLE IF NOT EXISTS feather_audit_events (
+            DB.exec([[CREATE TABLE IF NOT EXISTS feather_audit_events (
                 audit_event_id CHAR(36) NOT NULL,
                 source_resource VARCHAR(128) NOT NULL,
                 source_instance VARCHAR(128) NOT NULL,
@@ -44,7 +44,7 @@ local migrations = {
                 KEY idx_fae_class_time (sensitivity_class, retention_class, occurred_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
 
-            MySQL.query.await([[CREATE TABLE IF NOT EXISTS feather_audit_targets (
+            DB.exec([[CREATE TABLE IF NOT EXISTS feather_audit_targets (
                 audit_event_id CHAR(36) NOT NULL,
                 ordinal SMALLINT UNSIGNED NOT NULL,
                 target_type VARCHAR(128) NOT NULL,
@@ -58,7 +58,7 @@ local migrations = {
                     REFERENCES feather_audit_events (audit_event_id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
 
-            MySQL.query.await([[CREATE TABLE IF NOT EXISTS feather_audit_references (
+            DB.exec([[CREATE TABLE IF NOT EXISTS feather_audit_references (
                 audit_event_id CHAR(36) NOT NULL,
                 ordinal SMALLINT UNSIGNED NOT NULL,
                 reference_resource VARCHAR(128) NOT NULL,
@@ -70,7 +70,7 @@ local migrations = {
                     REFERENCES feather_audit_events (audit_event_id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
 
-            MySQL.query.await([[CREATE TABLE IF NOT EXISTS feather_audit_quarantine (
+            DB.exec([[CREATE TABLE IF NOT EXISTS feather_audit_quarantine (
                 quarantine_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 fingerprint CHAR(64) NOT NULL,
                 source_resource VARCHAR(128) NOT NULL,
@@ -89,7 +89,7 @@ local migrations = {
                 KEY idx_faq_source_time (source_resource, last_seen_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
 
-            MySQL.query.await([[CREATE TABLE IF NOT EXISTS feather_audit_access_events (
+            DB.exec([[CREATE TABLE IF NOT EXISTS feather_audit_access_events (
                 access_event_id CHAR(36) NOT NULL,
                 requester_type VARCHAR(128) NOT NULL,
                 requester_id VARCHAR(128) NOT NULL,
@@ -108,7 +108,7 @@ local migrations = {
 }
 
 function FeatherAuditMigrations.Run()
-    MySQL.query.await([[CREATE TABLE IF NOT EXISTS feather_audit_schema_migrations (
+    DB.exec([[CREATE TABLE IF NOT EXISTS feather_audit_schema_migrations (
         id VARCHAR(100) NOT NULL,
         checksum VARCHAR(64) NOT NULL,
         applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -116,7 +116,7 @@ function FeatherAuditMigrations.Run()
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci]])
 
     local applied = {}
-    for _, row in ipairs(MySQL.query.await(
+    for _, row in ipairs(DB.query(
         'SELECT id, checksum FROM feather_audit_schema_migrations') or {}) do
         applied[row.id] = row.checksum
     end
@@ -128,9 +128,9 @@ function FeatherAuditMigrations.Run()
         if not applied[migration.id] then
             local ok, problem = pcall(function()
                 migration.up()
-                MySQL.insert.await(
+                DB.insert(
                     'INSERT INTO feather_audit_schema_migrations (id, checksum) VALUES (?, ?)',
-                    { migration.id, migration.checksum })
+                    migration.id, migration.checksum)
             end)
             if not ok then return false, ('migration_failed:%s:%s'):format(migration.id, tostring(problem)) end
         end
