@@ -51,7 +51,7 @@ end
 local function validNamespacedName(value, requireNamespace)
     if not validString(value, limits.keyBytes, '^[a-z][a-z0-9_%.]*$') then return false end
     if value:sub(-1) == '.' or value:find('%.%.', 1, false) then return false end
-    if requireNamespace and not value:find('%.', 1, true) then return false end
+    if requireNamespace and not value:find('.', 1, true) then return false end
     for segment in value:gmatch('[^%.]+') do
         if not segment:match(snakePattern) then return false end
     end

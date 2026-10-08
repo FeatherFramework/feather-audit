@@ -23,6 +23,18 @@ local unknown = FeatherAuditValidator.Validate(unknownContext, { nowEpoch = now 
 Assert.falsy(unknown.ok)
 Assert.equal(FeatherAuditResults.contextUnknownField, unknown.code)
 
+local invalidContextKey = Fixtures.validTransfer()
+invalidContextKey.context.unknownField = true
+local invalidKey = FeatherAuditValidator.Validate(invalidContextKey, { nowEpoch = now })
+Assert.equal(FeatherAuditResults.fieldInvalid, invalidKey.code)
+Assert.equal('$.context.unknownField', invalidKey.path)
+
+local unknownSnakeKey = Fixtures.validTransfer()
+unknownSnakeKey.context.unknown_field = true
+local unknownKey = FeatherAuditValidator.Validate(unknownSnakeKey, { nowEpoch = now })
+Assert.equal(FeatherAuditResults.contextUnknownField, unknownKey.code)
+Assert.equal('$.context.unknown_field', unknownKey.path)
+
 local secret = Fixtures.validTransfer({ summary = 'https://discord.com/api/webhooks/123/secret' })
 local prohibited = FeatherAuditValidator.Validate(secret, { nowEpoch = now })
 Assert.falsy(prohibited.ok)

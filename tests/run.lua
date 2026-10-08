@@ -7,7 +7,22 @@ local specifications = {
     'tests/unit/builder_spec.lua',
     'tests/unit/config_spec.lua',
     'tests/integration/outbox_harness_spec.lua',
-    'tests/unit/ingestion_service_spec.lua'
+    'tests/unit/ingestion_service_spec.lua',
+    'tests/unit/event_repository_spec.lua',
+    'tests/unit/smoke_producer_spec.lua',
+    'tests/unit/failure_smoke_spec.lua',
+    'tests/unit/search_spec.lua',
+    'tests/unit/authorization_spec.lua',
+    'tests/unit/admin_audit_catalog_spec.lua',
+    'tests/unit/pagination_spec.lua',
+    'tests/unit/read_pause_spec.lua',
+    'tests/unit/visibility_query_spec.lua',
+    'tests/unit/admin_visibility_diagnostics_spec.lua',
+    'tests/unit/administrator_bootstrap_spec.lua',
+    'tests/unit/projection_spec.lua',
+    'tests/unit/framework_audit_spec.lua',
+    'tests/unit/admin_producer_spec.lua',
+    'tests/unit/admin_case_audit_spec.lua'
 }
 
 local passed = 0

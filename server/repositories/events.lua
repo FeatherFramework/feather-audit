@@ -25,14 +25,14 @@ local function statementsFor(auditEventId, event, canonical, contextJson)
                  context_json, canonical_payload, sensitivity_class, retention_class, integrity_hash)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                         ?, ?, ?, ?, SHA2(?, 256))]],
-            values = {
+            values = table.pack(
                 auditEventId, event.sourceResource, event.sourceInstance, event.eventId,
                 event.eventType, event.eventVersion, event.contractVersion, databaseTimestamp(event.occurredAt),
                 event.invokingResource, event.correlationId, event.causationId,
                 event.actor.type, event.actor.id, event.actor.accountId, event.actor.characterId,
                 event.actor.resource, event.actor.displayName, event.result, event.reasonCode, event.summary,
                 contextJson, canonical, event.sensitivityClass, event.retentionClass, canonical
-            }
+            )
         }
     }
     for index, target in ipairs(event.targets) do
@@ -40,7 +40,7 @@ local function statementsFor(auditEventId, event, canonical, contextJson)
             query = [[INSERT INTO feather_audit_targets
                 (audit_event_id, ordinal, target_type, target_id, target_role, target_resource, target_display_name)
                 VALUES (?, ?, ?, ?, ?, ?, ?)]],
-            values = { auditEventId, index, target.type, target.id, target.role, target.resource, target.displayName }
+            values = table.pack(auditEventId, index, target.type, target.id, target.role, target.resource, target.displayName)
         }
     end
     for index, reference in ipairs(event.references) do
@@ -48,7 +48,7 @@ local function statementsFor(auditEventId, event, canonical, contextJson)
             query = [[INSERT INTO feather_audit_references
                 (audit_event_id, ordinal, reference_resource, reference_type, reference_id)
                 VALUES (?, ?, ?, ?, ?)]],
-            values = { auditEventId, index, reference.resource, reference.type, reference.id }
+            values = table.pack(auditEventId, index, reference.resource, reference.type, reference.id)
         }
     end
     return statements
@@ -66,18 +66,17 @@ function FeatherAuditEventRepository.Accept(event, canonical, contextJson)
     -- a genuine database/connection error, matching this function's documented outcomes.
     local transacted, transactionResult = pcall(DB.transaction, function(tx)
         for _, statement in ipairs(statementsFor(auditEventId, event, canonical, contextJson)) do
-            tx.raw(statement.query, table.unpack(statement.values))
+            tx.raw(statement.query, table.unpack(statement.values, 1, statement.values.n))
         end
         return true
     end)
-    local ok, persisted = true, transacted and transactionResult == true
-    if ok and persisted then return 'accepted', auditEventId end
+    if transacted and transactionResult == true then return 'accepted', auditEventId end
 
     found = existing(event.sourceResource, event.sourceInstance, event.eventId)
     if found then
         return found.canonicalPayload == canonical and 'duplicate' or 'identity_conflict', found.auditEventId
     end
-    return 'retryable_rejection', nil, ok and 'transaction_rejected' or 'database_error'
+    return 'retryable_rejection', nil, transacted and 'transaction_rejected' or 'database_error'
 end
 
 function FeatherAuditEventRepository.FindByProducerIdentity(sourceResource, sourceInstance, eventId)

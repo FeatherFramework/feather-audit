@@ -5,6 +5,7 @@ FeatherAuditSchemaRegistry.Register({
     minimumTargets = 1,
     minimumSensitivity = 'internal',
     retentionClass = 'operational',
+    readProjection = { sequence = 'internal', message = 'restricted' },
     context = {
         type = 'object',
         fields = {

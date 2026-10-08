@@ -11,6 +11,33 @@ exports('Ingest', function(event)
     return FeatherAuditIngestion.Ingest(event, sourceResource)
 end)
 
+local function protectedRead(request, actorSource, operation)
+    local caller = GetInvokingResource()
+    local called, result = pcall(FeatherAuditAuthorization.Search, request, actorSource, caller, operation)
+    if not called then
+        return { ok = false, code = 'forbidden', message = 'Audit read is not permitted.' }
+    end
+    return result
+end
+
+exports('Search', function(request, actorSource)
+    return protectedRead(request, actorSource, 'audit.search.v1')
+end)
+exports('GetEvent', function(request, actorSource)
+    return protectedRead(request, actorSource, 'audit.event.get.v1')
+end)
+exports('GetCorrelation', function(request, actorSource)
+    return protectedRead(request, actorSource, 'audit.correlation.get.v1')
+end)
+
+exports('GetVisibilitySmokeFixture', function()
+    if GetInvokingResource() ~= 'feather-admin' or not Config.Development.smokeCommands
+        or not FeatherAuditVisibilityFixture then return nil end
+    local copy = {}
+    for key, value in pairs(FeatherAuditVisibilityFixture) do copy[key] = value end
+    return copy
+end)
+
 AddEventHandler('onResourceStart', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
     FeatherAudit.SetState(FeatherAuditConstants.lifecycle.starting, false, 'database_starting')

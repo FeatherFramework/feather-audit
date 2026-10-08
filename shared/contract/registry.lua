@@ -54,6 +54,19 @@ function FeatherAuditSchemaRegistry.Register(schema)
         or schema.minimumTargets > FeatherAuditConstants.limits.targets) then
         return false, FeatherAuditResults.fieldInvalid
     end
+    if schema.readProjection ~= nil then
+        if type(schema.readProjection) ~= 'table' or schema.context.type ~= 'object' then
+            return false, FeatherAuditResults.fieldInvalid
+        end
+        for field, class in pairs(schema.readProjection) do
+            local spec = schema.context.fields[field]
+            if not spec or (class ~= 'internal' and class ~= 'restricted')
+                or (spec.type ~= 'string' and spec.type ~= 'integer' and spec.type ~= 'boolean')
+                or (spec.type == 'string' and (not spec.maxBytes or spec.maxBytes > 1024)) then
+                return false, FeatherAuditResults.fieldInvalid
+            end
+        end
+    end
     local key = schemaKey(schema.eventType, schema.eventVersion)
     if schemas[key] then return false, 'schema_already_registered' end
     schemas[key] = schema
