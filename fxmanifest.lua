@@ -6,7 +6,7 @@ lua54 'yes'
 name 'feather-audit'
 description 'Cross-domain audit, investigation, and operator alerting for Feather Framework'
 author 'BCC Scripts'
-version '0.2.0-dev'
+version '0.1.0'
 
 shared_scripts {
     'config.lua',
@@ -15,7 +15,8 @@ shared_scripts {
     'shared/contract/canonical.lua',
     'shared/contract/registry.lua',
     'shared/contract/validator.lua',
-    'schemas/audit/smoke_ingested_v1.lua'
+    'schemas/audit/smoke_ingested_v1.lua',
+    'schemas/admin/action_recorded_v1.lua'
 }
 
 server_scripts {
@@ -25,8 +26,13 @@ server_scripts {
     'server/database/migrations.lua',
     'server/repositories/events.lua',
     'server/repositories/quarantine.lua',
+    'server/services/projection.lua',
+    'server/repositories/search.lua',
     'server/ingestion/rate_limit.lua',
     'server/ingestion/service.lua',
+    'server/services/search.lua',
+    'server/services/authorization.lua',
+    'server/services/read_pause.lua',
     'server/services/smoke.lua',
     'server/main.lua'
 }

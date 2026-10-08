@@ -1,192 +1,245 @@
 # Feather Audit
 
-Feather Audit is the cross-domain audit, investigation, and operator-alerting service for the Feather Framework. It will store a normalized, append-only projection of significant events emitted by Feather resources without replacing the authoritative records owned by those resources.
+Feather Audit provides server-only ingestion of reviewed domain events into an
+append-only investigation projection. Domains retain their authoritative records.
+This resource is under development; production producer onboarding is incomplete.
+Search, notifications, retention execution, redaction, and investigation exports
+are not available yet.
 
-> [!IMPORTANT]
-> This resource is under active development. A2 database migrations and trusted server ingestion are implemented but have not yet passed live RedM/MySQL smoke tests. Search, retention jobs, redaction, exports, notifications, and production producer onboarding are not implemented. Do not use it as production evidence yet.
+## Installation
 
-## What Feather Audit will do
+Start feather-mysql and feather-core before feather-audit:
 
-- Ingest versioned events from trusted server resources.
-- Deduplicate retried events and quarantine permanently invalid events.
-- Correlate workflows across Economy, Inventory, Admin, Authority, Justice, and other resources.
-- Provide permission-controlled search and event detail APIs.
-- Apply sensitivity, redaction, retention, archival, and integrity policies.
-- Record sensitive Audit searches, exports, redactions, and administrative changes.
-- Evaluate operator-defined alert rules after an event is durably stored.
-- Send sanitized alerts to configured destinations, with Discord as the first external provider.
-- Expose ingestion lag, quarantine, notification delivery, retention, and integrity health.
-
-## What Feather Audit will not do
-
-- Replace Economy balances or transaction ledgers.
-- Replace Inventory ownership and movement history.
-- Replace Admin reports, moderation cases, warnings, bans, or notes.
-- Replace Authority policy or authorization decisions.
-- Replace Justice cases, warrants, charges, or sentences.
-- Act as a general gameplay event bus, analytics warehouse, chat system, or arbitrary webhook relay.
-
-Authoritative domains commit their state and a durable Audit outbox event in the same database transaction. Audit downtime may delay projection and alerts, but it must not cause a committed domain mutation to be lost or rolled back.
-
-## Current status
-
-The current A2 build provides:
-
-- A RedM `fxmanifest.lua`.
-- Safe default configuration with external delivery disabled.
-- Shared contract and lifecycle constants.
-- Server-side runtime state.
-- `GetHealth` and `GetCapabilities` exports with database and ingestion metrics.
-- The intended source directory layout for the phased build.
-- A1 pure-Lua canonicalization, validation, schema registry, producer event builder, and adapter-based outbox kit.
-- Offline specifications and an in-memory lost-acknowledgement/replay harness; execution remains pending until Lua 5.4 is available.
-- Ordered MySQL migrations for events, targets, references, quarantine, access records, and the migration ledger.
-- Allowlisted server-resource ingestion with invoker/source/instance verification and per-producer rate limits.
-- Durable deduplication, identity-conflict quarantine, registered-schema validation, and stored SHA-256 integrity hashes.
-- Console-only migration, health, and ingestion smoke commands gated by development configuration.
-
-The resource does **not** yet provide search, correlation views, retention execution, redaction, exports, notifications, or production event schemas. Only registered and configured server producers can ingest.
-
-## Planned architecture
-
-```text
-Domain mutation
-  -> domain transaction + durable outbox
-  -> Audit ingestion and deduplication
-  -> Audit database and indexes
-  -> search/correlation APIs
-  -> optional alert rules
-  -> sanitized Discord, console, or HTTP delivery
+```cfg
+ensure feather-mysql
+ensure feather-core
+ensure feather-audit
 ```
 
-Every accepted event is stored in Audit. Notification rules only add destinations; they never replace database storage.
+Startup validates configuration and applies Audit-owned migrations. Back up the
+database before an upgrade. Never edit applied migrations or their ledger.
 
-## Dependencies
+## Server configuration
 
-- `oxmysql`
-- `feather-core`
+- Set Config.SourceInstance to a stable server/world identifier. Changing it
+  changes the event deduplication scope.
+- Register exact trusted resource names, event prefixes, versions, and rate limits
+  in Config.Producers. Reviewed schemas must also be loaded by Audit.
+- Keep Config.Development.smokeCommands=false on production servers. Remove
+  temporary test-producer registrations after development acceptance.
+- Keep Config.Notifications.enabled=false; outbound delivery is not implemented.
+- Do not place passwords, webhook URLs, tokens, or connection strings in events.
 
-Future phases will integrate with the framework authority provider for protected search and management operations. Individual producer resources are integrations, not runtime dependencies of Feather Audit.
+## Health and capabilities
 
-## Installation for development
-
-1. Place the resource in the server resources directory with the exact name `feather-audit`.
-2. Install and start `oxmysql` and `feather-core` first.
-3. Add `ensure feather-audit` after those resources in `server.cfg`.
-4. Set a stable, installation-specific `Config.SourceInstance` in `config.lua`.
-5. Register only reviewed producers and their event prefixes/versions in `Config.Producers`.
-6. Review the startup message. Audit becomes ready only after configuration validation and all migrations succeed.
-
-Starting A2 creates Audit-owned tables. Back up the database before testing migrations on an existing installation.
-
-## Configuration
-
-Safe development defaults live in `config.lua`. External notifications are disabled, and no webhook secret belongs in that file.
-
-- `SourceInstance` is a stable server/world identity and part of deduplication. Do not change it casually after producers have emitted events.
-- `Producers` allowlists exact server resource names, event prefixes, versions, instance identity, and rate limits.
-- `Development.smokeCommands` enables console-only destructive-free smoke fixtures on a test server. Keep it false in production.
-
-The owner-facing notification vocabulary is:
-
-- **Destinations** — named places that may receive an alert.
-- **Rules** — conditions that deserve additional attention.
-- **When** — readable matching conditions.
-- **Send to** — zero or more destinations added after durable Audit storage.
-
-Planned destination types include `discord`, `console`, and `http_webhook`. Secrets will be referenced through a protected secret provider or server environment, never embedded in Audit events, exports, client scripts, or ordinary configuration examples.
-
-## Project structure
-
-```text
-feather-audit/
-|- config.lua
-|- fxmanifest.lua
-|- docs/
-|  |- THREAT_MODEL.md
-|  |- DATA_POLICY.md
-|  |- EVENT_CONTRACT.md
-|  `- PRODUCER_REQUIREMENTS.md
-|- producer/
-|  |- event_builder.lua
-|  |- event_id.lua
-|  `- outbox.lua
-|- schemas/
-|  `- examples/
-|- shared/
-|  |- constants.lua
-|  |- results.lua
-|  `- contract/
-|- server/
-|  |- core/
-|  |  `- runtime.lua
-|  |- database/
-|  |- ingestion/
-|  |- repositories/
-|  |- services/
-|  |- providers/
-|  `- main.lua
-`- tests/
+```lua
+local health = exports['feather-audit']:GetHealth()
+local capabilities = exports['feather-audit']:GetCapabilities()
 ```
 
-Expected responsibilities:
+These exports return plain tables. Health reports lifecycle status, readiness,
+database status, migration count, and ingestion metrics. Capabilities describe
+implemented features; a started resource is not necessarily ready for ingestion.
 
-- `docs/` — approved threat, data, event, and producer contracts that implementation must follow.
-- `producer/` — pure Lua producer helpers designed for versioned vendoring; domain commits do not depend on a running Audit resource.
-- `schemas/` — reviewed event-type schemas and non-production reference examples.
-- `shared/` — stable contract names, result codes, and non-sensitive shared values.
-- `server/core/` — lifecycle, readiness, capability reporting, and dependency adapters.
-- `server/database/` — ordered migrations only; no ad hoc schema changes in services.
-- `server/ingestion/` — validation, authentication, deduplication, and quarantine.
-- `server/repositories/` — the only direct access to Audit-owned tables.
-- `server/services/` — search, correlation, retention, redaction, integrity, and alert policy.
-- `server/providers/` — replaceable outbound providers such as Discord, console, and signed HTTP.
-- `tests/` — contract, repository, failure-state, migration, and integration coverage.
+## Bounded metadata search (development)
 
-## Development plan
+```lua
+local result = exports['feather-audit']:Search({
+    fromEpoch = os.time() - 86400,
+    toEpoch = os.time(),
+    limit = 25,
+    sourceResource = 'feather-shops'
+}, actorSource)
+```
 
-The phased implementation plan is maintained in [Feather Audit Master Plan](../feather-framework-docs/feather-audit/Feather_Audit_Master_Plan.md). Its gates are the source of truth for development order:
+Only the trusted Admin server adapter may supply a player source. The temporary
+smoke producer is also trusted while development smoke commands are enabled.
+Audit derives the active character session from Core and evaluates the named
+Authority provider. Administrator/Owner require `staff.admin.audit.search`;
+restricted events additionally require `staff.admin.audit.sensitive.view`
+(Owner by default). Sealed events are excluded. Missing permissions or provider
+failure return `forbidden`; session/permission changes during a read discard results.
+Both capability decisions must use the same Authority policy version. Failure
+to evaluate either capability fails closed rather than silently downgrading access.
 
-1. Decisions and threat model.
-2. Contract and producer kit.
-3. Secure ingestion foundation.
-4. Minimum safe search.
-5. Economy and Inventory vertical slice.
-6. Feather Admin migration.
-7. Outbound alerting and Discord delivery.
-8. Remaining mandatory producers.
-9. Retention, redaction, archive, and integrity operations.
-10. Controlled exports and investigation tooling.
-11. Legacy retirement and release.
+Requests allow only integer `fromEpoch`, `toEpoch`, `limit` (1–50, default 25),
+and optional exact `sourceResource`, `eventType`, `correlationId`, `eventId` filters.
+Additional UUID filters `targetAccountId` and `targetCharacterId` match typed
+targets. `adminAction` matches the approved action field only on Admin v1 events.
+The window is limited to seven days. Success returns
+`{ ok = true, value = { events = {...}, limit = n } }`. Events contain metadata
+only; payload, context, summary, display names, and actor identifiers are omitted.
+Each successful repository read records access transactionally. Validation,
+read availability, and rate-limit errors use Contract 1 error envelopes.
+Success also includes `nextCursor` when another page exists. Supply that cursor
+with the exact same request to continue. Cursors expire after five minutes,
+do not survive Audit restart, and are bound to caller, character session,
+sensitivity permission, operation, and filters including limit. Invalid or
+expired cursors return `invalid_cursor`. The server stores at most 256 live
+cursors; saturation returns `cursor_capacity`. Ordering uses occurrence time
+and Audit ID; this is a live keyset traversal, not a frozen database snapshot.
 
-## Testing status
+`GetEvent({ fromEpoch, toEpoch, eventId }, actorSource)` returns
+`{ ok = true, value = { event = eventOrNil } }`. Hidden and absent events
+return the same empty value. Limit and cursor are not accepted for detail reads.
+An event may include `content = { context = approvedFields, projectionVersion = 1 }`.
+Only scalar context fields listed in its loaded schema's `readProjection` return.
+No projection is the metadata-only default. Example:
+`readProjection = { sequence = 'internal', message = 'restricted' }`.
+Internal fields require search access; restricted fields additionally require
+sensitive access even when the event itself is internal. Fields must exist in
+the context schema and be string, integer, or boolean; projected strings require
+`maxBytes <= 1024`. Nested content is unsupported. Unknown schema versions,
+malformed context, and invalid field values disclose no unapproved fields.
+Raw JSON, payloads, summaries, actor/target IDs, and display names never return.
 
-This initial setup has only static validation available. It has not been started on a RedM server or connected to MySQL. Runtime, database, restart, permission, delivery, and recovery claims must remain unchecked until a suitable development server is available.
+`GetCorrelation({ fromEpoch, toEpoch, correlationId, limit, cursor }, actorSource)`
+returns the same paged result as Search, restricted to that correlation ID.
+Both use the same trusted caller and Authority checks and create their own
+non-recursive access records. Correlation results remain metadata-only.
+The full search capability
+remains false pending complete A3 acceptance and sensitive visibility fixtures.
 
-When implementation begins, automated tests should cover as much contract and repository behavior as possible without RedM. Live-server checks should be maintained separately and marked pending rather than treated as passed.
+Development-only `GetVisibilitySmokeFixture()` returns the current test IDs/window
+only to the Admin server resource while smokeCommands is enabled. It returns nil
+otherwise and does not expose event payloads. This helper is not a production API.
 
-Follow [A2 Smoke Tests](docs/A2_SMOKE_TESTS.md) when a RedM/MySQL test server is available. Do not advance to A3 until the required A2 checks pass.
+## Ingestion API v1
 
-## Security
+**Export:** `Ingest`
+**Transport name:** `audit.ingest.v1`
+**Availability:** Server only
 
-- Never place Discord webhook URLs, HTTP signing secrets, credentials, or tokens in source-controlled configuration.
-- Never expose ingestion or management functions as client-trusted mutation events.
-- Never allow arbitrary payloads or arbitrary outbound messages.
-- Treat logs and console output as potentially observable; redact sensitive values before writing them.
-- Keep all durable Audit table access behind server repositories and versioned APIs.
+### Registration
 
-## Documentation
+Audit accepts only exact invoking resources registered in `Config.Producers`. A registration limits source instance, event-type prefixes, event versions, and requests per minute.
 
-- [Threat Model](docs/THREAT_MODEL.md)
-- [Data and Retention Policy](docs/DATA_POLICY.md)
-- [Audit Event Contract v1](docs/EVENT_CONTRACT.md)
-- [Producer Requirements](docs/PRODUCER_REQUIREMENTS.md)
-- [Generic Producer Integration Guide](docs/PRODUCER_INTEGRATION_GUIDE.md)
-- [Producer Kit](producer/README.md)
-- [A1 Implementation Status](docs/A1_IMPLEMENTATION_STATUS.md)
-- [A2 Smoke Tests](docs/A2_SMOKE_TESTS.md)
-- [Ingestion API v1](docs/INGESTION_API.md)
-- [Feather Audit Master Plan](../feather-framework-docs/feather-audit/Feather_Audit_Master_Plan.md)
-- [Framework Build and Load Order](../feather-framework-docs/Feather_Release_Build_and_Load_Order.md)
+```lua
+Config.Producers = {
+    ['feather-economy'] = {
+        enabled = true,
+        sourceInstance = 'frontier-1',
+        eventPrefixes = { 'economy.' },
+        versions = { [1] = true },
+        maxPerMinute = 600
+    }
+}
+```
 
-Feather Audit is under active development. Test all future phases on a private server before production use.
+The corresponding event schemas must also be loaded by Audit. Registration alone does not allow an unknown event type.
+
+### Call
+
+```lua
+local response = exports['feather-audit']:Ingest(event)
+```
+
+Audit obtains the invoking resource from the Cfx runtime. It does not accept a caller-supplied producer identity argument. Never wrap this export in a client-accessible network event.
+
+### Responses
+
+```lua
+{
+    result = 'accepted',
+    auditEventId = 'database UUID',
+    warnings = {}
+}
+
+{
+    result = 'duplicate',
+    auditEventId = 'original database UUID',
+    warnings = {}
+}
+
+{
+    result = 'retryable_rejection',
+    code = 'audit_not_ready | producer_rate_limited | database_error | quarantine_unavailable',
+    warnings = {}
+}
+
+{
+    result = 'quarantined',
+    auditEventId = 'present only for an identity conflict with an existing event',
+    code = 'stable rejection code',
+    path = '$.bounded.field.path',
+    warnings = {}
+}
+```
+
+The producer marks `accepted` and `duplicate` as delivered. It retries `retryable_rejection` with backoff. It stops automatic retry and alerts operators for `quarantined`.
+
+Thrown export errors or timeouts are treated as retryable because Audit may have committed before acknowledgement was lost.
+
+### Security behavior
+
+- Unregistered resources are rejected without creating quarantine rows.
+- A registered caller cannot claim another `sourceResource` or unexpected `sourceInstance`.
+- Event type/version must be permitted by both registration and a loaded schema.
+- Quarantine stores identity and bounded diagnostics, never the raw rejected payload.
+- No notification provider runs during A2 ingestion.
+
+## Producer kit API
+
+The producer kit constructs and validates `audit_event.v1` records and manages the transport-independent outbox state machine. It is pure Lua so a domain can commit locally while `feather-audit` is stopped or absent.
+
+### Dependency order
+
+Load these files into the producer resource in order:
+
+```text
+shared/constants.lua
+shared/results.lua
+shared/contract/canonical.lua
+shared/contract/registry.lua
+shared/contract/validator.lua
+producer/event_id.lua
+producer/event_builder.lua
+producer/outbox.lua
+owned event schemas
+```
+
+For now, producers should vendor a reviewed version of those files. Referencing live Audit exports for event construction or outbox insertion is prohibited because it would make authoritative mutations depend on Audit availability. A future framework contract package may replace vendoring.
+
+### Repository adapter
+
+`FeatherAuditProducerOutbox.Create` requires a repository with:
+
+- `insert(transaction, row)` — insert into the producer's outbox using the caller's existing domain transaction.
+- `lease(batchSize, owner, expiresAt, now)` — atomically claim eligible rows and reclaim expired leases.
+- `markDelivered(row, auditEventId, result, now)`.
+- `markRetry(row, nextAttemptAt, resultCode, attemptCount)`.
+- `markQuarantined(row, resultCode, now)`.
+
+The kit deliberately does not provide a generic `oxmysql` repository yet. Each domain's transaction wrapper must be understood and tested before an adapter can honestly guarantee that the domain mutation and outbox insert share one transaction.
+
+### Transport adapter
+
+The transport provides `ingest(event, canonicalPayload)` and returns:
+
+```lua
+{ result = 'accepted', auditEventId = '...' }
+{ result = 'duplicate', auditEventId = '...' }
+{ result = 'retryable_rejection', code = '...' }
+{ result = 'quarantined', code = '...' }
+```
+
+Timeouts and thrown errors are treated as retryable because Audit may have committed before the acknowledgement was lost.
+
+The initial Cfx transport implementation calls:
+
+```lua
+local result = exports['feather-audit']:Ingest(event)
+```
+
+Audit independently canonicalizes and validates the event; it does not trust the producer's supplied canonical payload. See [Ingestion API](#ingestion-api-v1).
+
+### Transaction rule
+
+Call `Enqueue` with the active domain transaction before that transaction commits. Do not call it after commit, from an in-memory event handler, or as a replacement for a durable outbox.
+
+See [Producer Requirements](../feather-framework-docs/feather-audit/PRODUCER_REQUIREMENTS.md) and [Event Contract](../feather-framework-docs/feather-audit/EVENT_CONTRACT.md) for the normative rules.
+
+## Additional documentation
+
+Design, development phases, acceptance procedures, and results live in
+[feather-framework-docs](../feather-framework-docs/feather-audit/Feather_Audit_Master_Plan.md).

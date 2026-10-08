@@ -38,3 +38,18 @@ local denied = FeatherAuditIngestion.Ingest(event, 'unregistered-resource')
 Assert.equal(FeatherAuditConstants.results.quarantined, denied.result)
 Assert.equal(FeatherAuditResults.producerNotAllowed, denied.code)
 Assert.equal(0, #quarantined, 'unregistered producers must not write quarantine rows')
+
+FeatherAuditEventRepository.Accept = function() error('injected database failure') end
+local unavailable = FeatherAuditIngestion.Ingest(event, 'feather-economy')
+Assert.equal('retryable_rejection', unavailable.result)
+Assert.equal('database_error', unavailable.code)
+Assert.equal(0, #quarantined, 'temporary database failures must not quarantine a valid event')
+FeatherAuditEventRepository.Accept = function() return 'accepted', 'recovered-id' end
+local recovered = FeatherAuditIngestion.Ingest(event, 'feather-economy')
+Assert.equal('accepted', recovered.result)
+Assert.equal('recovered-id', recovered.auditEventId)
+Config.Producers['feather-economy'].maxPerMinute = 1
+local limited = FeatherAuditIngestion.Ingest(event, 'feather-economy')
+Assert.equal('retryable_rejection', limited.result)
+Assert.equal('producer_rate_limited', limited.code)
+Assert.equal(0, #quarantined, 'rate-limited events must not write quarantine rows')
