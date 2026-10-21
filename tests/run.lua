@@ -22,7 +22,8 @@ local specifications = {
     'tests/unit/projection_spec.lua',
     'tests/unit/framework_audit_spec.lua',
     'tests/unit/admin_producer_spec.lua',
-    'tests/unit/admin_case_audit_spec.lua'
+    'tests/unit/admin_case_audit_spec.lua',
+    'tests/unit/access_producer_spec.lua'
 }
 
 local passed = 0

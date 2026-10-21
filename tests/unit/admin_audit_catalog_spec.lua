@@ -23,8 +23,8 @@ end
 exports = { ['feather-authority'] = {
     AwaitReady = function() return { ok = true } end,
     RegisterCapabilities = function(_, request)
-        Assert.equal('admin-authority-capabilities-003', request.requestId)
-        Assert.equal(88, #request.capabilities)
+        Assert.equal('admin-authority-capabilities-005', request.requestId)
+        Assert.equal(90, #request.capabilities)
         return { ok = true, value = { replayed = true } }
     end,
     CreateRole = function(_, request)
@@ -48,9 +48,9 @@ Assert.truthy(FeatherAdmin.AuthorityCatalog.ready)
 Assert.equal(3, added, 'administrator gets search; owner gets search and sensitive view')
 local result = FeatherAdmin.AuthorityCatalog.result
 Assert.equal(33, result.moderator)
-Assert.equal(65, result.administrator)
-Assert.equal(88, result.owner)
-Assert.equal(186, result.totalGrants)
+Assert.equal(67, result.administrator)
+Assert.equal(90, result.owner)
+Assert.equal(190, result.totalGrants)
 callback()
 Assert.truthy(FeatherAdmin.AuthorityCatalog.ready)
 Assert.equal(3, added, 'second startup must not add duplicate grants')

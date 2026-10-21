@@ -16,7 +16,8 @@ shared_scripts {
     'shared/contract/registry.lua',
     'shared/contract/validator.lua',
     'schemas/audit/smoke_ingested_v1.lua',
-    'schemas/admin/action_recorded_v1.lua'
+    'schemas/admin/action_recorded_v1.lua',
+    'schemas/access/grant_v1.lua'
 }
 
 server_scripts {

@@ -3,6 +3,11 @@
 Feather Audit provides server-only ingestion of reviewed domain events into an
 append-only investigation projection. Domains retain their authoritative records.
 This resource is under development; production producer onboarding is incomplete.
+`feather-access` is registered for `access.grant.created@1` and
+`access.grant.revoked@1`. Its source instance must match Config.SourceInstance.
+Access retains its own authoritative grant state and transaction-bound outbox;
+Audit provides the deduplicated investigation projection. The schemas restrict
+events to reviewed grant metadata with security retention and restricted sensitivity.
 Search, notifications, retention execution, redaction, and investigation exports
 are not available yet.
 

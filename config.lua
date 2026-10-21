@@ -16,6 +16,10 @@ Config.SourceInstance = 'default'
 -- Server-only producer registrations. Payload sourceResource is checked against
 -- the actual invoking resource and these event prefixes/versions.
 Config.Producers = {
+    ['feather-access'] = {
+        enabled = true, sourceInstance = Config.SourceInstance,
+        eventPrefixes = { 'access.grant.' }, versions = { [1] = true }, maxPerMinute = 600,
+    },
     ['feather-admin'] = {
         enabled = true, sourceInstance = Config.SourceInstance,
         eventPrefixes = { 'admin.action.' }, versions = { [1] = true }, maxPerMinute = 600
