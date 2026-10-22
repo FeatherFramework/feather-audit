@@ -1,4 +1,4 @@
-for _, eventType in ipairs({ 'access.grant.created', 'access.grant.revoked' }) do
+for _, eventType in ipairs({ 'access.grant.created', 'access.grant.revoked', 'access.grant.preserved' }) do
     assert(FeatherAuditSchemaRegistry.Register({
         eventType = eventType, eventVersion = 1,
         actorTypes = { character = true, system = true },
@@ -17,6 +17,10 @@ for _, eventType in ipairs({ 'access.grant.created', 'access.grant.revoked' }) d
                 items = { type = 'string', maxBytes = 64 } },
             requestor_resource = { type = 'string', required = true, maxBytes = 100 },
             reason_code = { type = 'string', required = true, maxBytes = 64 },
+            manifest_id = {type='string', required=eventType=='access.grant.preserved', maxBytes=36},
+            source_epoch = {type='integer', required=eventType=='access.grant.preserved', minimum=1, maximum=9007199254740991},
+            transfer_resource = {type='string', required=eventType=='access.grant.preserved', maxBytes=100},
+            transfer_request_id = {type='string', required=eventType=='access.grant.preserved', maxBytes=128},
             provenance_type = { type = 'string', required = true, maxBytes = 64 },
         } },
     }))

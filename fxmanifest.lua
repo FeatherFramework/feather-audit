@@ -6,7 +6,7 @@ lua54 'yes'
 name 'feather-audit'
 description 'Cross-domain audit, investigation, and operator alerting for Feather Framework'
 author 'BCC Scripts'
-version '0.1.0'
+version '0.1.1'
 
 shared_scripts {
     'config.lua',

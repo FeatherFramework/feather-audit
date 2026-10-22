@@ -28,3 +28,11 @@ for _, name in ipairs({ 'access.grant.created', 'access.grant.revoked' }) do
 end
 local unknown = Event('access.grant.unconfigured')
 Assert.falsy(unknown)
+local preserved=Event('access.grant.created')
+preserved.eventType='access.grant.preserved'
+Assert.falsy(FeatherAuditValidator.Validate(preserved).ok)
+preserved.context.manifest_id='manifest-1'
+preserved.context.source_epoch=1
+preserved.context.transfer_resource='fixture'
+preserved.context.transfer_request_id='transfer-1'
+Assert.truthy(FeatherAuditValidator.Validate(preserved).ok)

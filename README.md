@@ -1,5 +1,7 @@
 # Feather Audit
 
+0.1.1 validates Access grant-preservation events and their transfer proof context.
+
 Feather Audit provides server-only ingestion of reviewed domain events into an
 append-only investigation projection. Domains retain their authoritative records.
 This resource is under development; production producer onboarding is incomplete.
